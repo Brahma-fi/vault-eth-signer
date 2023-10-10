@@ -1,0 +1,32 @@
+version: '3.1'
+
+networks:
+  vault-net:
+    driver: bridge
+
+services:
+  vault-server:
+    image: hashicorp/vault:1.15.0
+    container_name: vault-server
+    volumes:
+      - vault-backend:/vault/file
+      - vault-logs:/vault/logs
+      - ./.build/vault/config:/vault/config
+      - ./.build/vault/policies:/vault/policies
+      - ./.build/vault/data:/vault/data
+      - ./.build/vault/plugins:/vault/plugins
+    ports:
+      - "8200:8200"
+    networks:
+      - vault-net
+    environment:
+      - VAULT_ADDR=http://0.0.0.0:8200
+      - VAULT_API_ADDR=http://0.0.0.0:8200
+      - VAULT_ADDRESS=http://0.0.0.0:8200
+    cap_add:
+      - IPC_LOCK
+    command:  vault server -dev -dev-listen-address="0.0.0.0:8200" -dev-plugin-dir=/vault/plugins -dev-root-token-id="root"
+
+volumes:
+  vault-backend:
+  vault-logs:

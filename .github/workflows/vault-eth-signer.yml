@@ -1,0 +1,40 @@
+name: Vault Ethereum Signer Plugin
+on:
+  workflow_dispatch:
+  push:
+    paths-ignore: [ README.md, .github/workflows/*.yml, docker-compose.yml ]
+  pull_request:
+    paths-ignore: [ README.md, .github/workflows/*.yml, docker-compose.yml ]
+
+jobs:
+  CI:
+    runs-on: ubuntu-latest
+    name: Continuous Integration
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Golang caches
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21.x'
+
+      - name: Build
+        id: Build
+        run: make build
+
+      - name: Test
+        id: Test
+        run: make test
+
+      - name: Run Gosec Security Scanner
+        uses: securego/gosec@master
+        with:
+          args: '-severity=medium -no-fail -fmt sarif -out results.sarif ./...'
+          
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: results.sarif
