@@ -65,8 +65,15 @@ func (b *Backend) createKeyManager(
 	req *logical.Request,
 	data *framework.FieldData,
 ) (*logical.Response, error) {
-	serviceInput := data.Get("serviceName").(string)
-	keyInput := data.Get("privateKey").(string)
+	serviceInput, ok := data.Get("serviceName").(string)
+	if !ok {
+		return nil, errInvalidType
+	}
+
+	keyInput, ok := data.Get("privateKey").(string)
+	if !ok {
+		return nil, errInvalidType
+	}
 
 	keyManager, err := b.retrieveKeyManager(ctx, req, serviceInput)
 	if err != nil {
