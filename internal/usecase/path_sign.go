@@ -41,8 +41,15 @@ func (b *Backend) sign(
 	req *logical.Request,
 	data *framework.FieldData,
 ) (*logical.Response, error) {
-	serviceNameInput := data.Get("name").(string)
-	hashInput := data.Get("hash").(string)
+	serviceNameInput, ok := data.Get("name").(string)
+	if !ok {
+		return nil, errInvalidType
+	}
+
+	hashInput, ok := data.Get("hash").(string)
+	if !ok {
+		return nil, errInvalidType
+	}
 
 	keyManager, err := b.retrieveKeyManager(ctx, req, serviceNameInput)
 	if err != nil {

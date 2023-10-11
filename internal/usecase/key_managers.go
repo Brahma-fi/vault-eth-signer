@@ -33,8 +33,7 @@ func (b *Backend) retrieveKeyManager(
 	req *logical.Request,
 	serviceName string,
 ) (*KeyManager, error) {
-	var path string
-	path = fmt.Sprintf("key-managers/%s", serviceName)
+	path := fmt.Sprintf("key-managers/%s", serviceName)
 	entry, err := req.Storage.Get(ctx, path)
 	if err != nil {
 		b.Logger().Error("Failed to retrieve the keyManager by service_name", "path", path, "error", err)

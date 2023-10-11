@@ -2,12 +2,17 @@ package usecase
 
 import (
 	"crypto/ecdsa"
+	"errors"
 	"math/big"
 	"regexp"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
+)
+
+var (
+	errInvalidType = errors.New("invalid input type")
 )
 
 type Nonce struct {
@@ -75,6 +80,7 @@ func validNumber(input string) *big.Int {
 	return amount.Abs(amount)
 }
 
+// nolint
 func contains(arr []*big.Int, value *big.Int) bool {
 	for _, a := range arr {
 		if a.Cmp(value) == 0 {

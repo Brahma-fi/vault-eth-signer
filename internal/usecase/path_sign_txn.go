@@ -15,6 +15,13 @@ import (
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
+type RequestFieldsTransaction struct {
+	tx      *types.Transaction
+	chainID *big.Int
+	from    string
+	address string
+}
+
 func pathSignTx(b *Backend) *framework.Path {
 	return &framework.Path{
 		Pattern:        "key-managers/" + framework.GenericNameRegex("name") + "/txn/sign",
@@ -89,38 +96,25 @@ func (b *Backend) signTx(
 	req *logical.Request,
 	data *framework.FieldData,
 ) (*logical.Response, error) {
-	from := data.Get("name").(string)
-
-	var txDataToSign []byte
-	dataInput := data.Get("data").(string)
-	// some client such as go-ethereum uses "input" instead of "data"
-	if dataInput == "" {
-		dataInput = data.Get("input").(string)
-	}
-	if len(dataInput) > 2 && dataInput[0:2] != "0x" {
-		dataInput = "0x" + dataInput
-	}
-
-	txDataToSign, err := hexutil.Decode(dataInput)
+	feildsAndTx, err := b.validateAndGetTx(data)
 	if err != nil {
-		b.Logger().Error("Failed to decode payload for the 'data' field", "error", err)
 		return nil, err
 	}
 
-	keyManager, err := b.retrieveKeyManager(ctx, req, from)
+	keyManager, err := b.retrieveKeyManager(ctx, req, feildsAndTx.from)
 	if err != nil {
-		b.Logger().Error("Failed to retrieve the signing keyManager", "address", from, "error", err)
-		return nil, fmt.Errorf("error retrieving signing keyManager %s", from)
+		b.Logger().Error("Failed to retrieve the signing keyManager",
+			"address", feildsAndTx.from, "error", err)
+		return nil, fmt.Errorf("error retrieving signing keyManager %s", feildsAndTx.from)
 	}
 
 	if keyManager == nil {
-		return nil, fmt.Errorf("signing keyManager %s does not exist", from)
+		return nil, fmt.Errorf("signing keyManager %s does not exist", feildsAndTx.from)
 	}
 
-	address := data.Get("address").(string)
 	var privateKeyStr string
 	for _, keyPairs := range keyManager.KeyPairs {
-		if keyPairs.Address == address {
+		if keyPairs.Address == feildsAndTx.address {
 			privateKeyStr = keyPairs.PrivateKey
 			break
 		}
@@ -130,31 +124,6 @@ func (b *Backend) signTx(
 		return nil, errors.New("no private key for the input address")
 	}
 
-	amount := validNumber(data.Get("value").(string))
-	if amount == nil {
-		b.Logger().Error("Invalid amount for the 'value' field", "value", data.Get("value").(string))
-		return nil, fmt.Errorf("invalid amount for the 'value' field")
-	}
-
-	rawAddressTo := data.Get("to").(string)
-
-	chainId := validNumber(data.Get("chainId").(string))
-	if chainId == nil {
-		b.Logger().Error("Invalid chainId", "chainId", data.Get("chainId").(string))
-		return nil, fmt.Errorf("invalid chainId value")
-	}
-
-	gasLimitIn := validNumber(data.Get("gas").(string))
-	if gasLimitIn == nil {
-		b.Logger().Error("Invalid gas limit", "gas", data.Get("gas").(string))
-		return nil, fmt.Errorf("invalid gas limit")
-	}
-	gasLimit := gasLimitIn.Uint64()
-
-	gasPrice := validNumber(data.Get("gasPrice").(string))
-	gasFeeCapStr := data.Get("gasFeeCap").(string)
-	gasTipCapStr := data.Get("gasTipCap").(string)
-
 	privateKey, err := crypto.HexToECDSA(privateKeyStr)
 	if err != nil {
 		b.Logger().Error("Error reconstructing private key from retrieved hex", "error", err)
@@ -162,33 +131,14 @@ func (b *Backend) signTx(
 	}
 	defer zeroKey(privateKey)
 
-	nonceIn := validNumber(data.Get("nonce").(string))
-	var nonce uint64
-	nonce = nonceIn.Uint64()
-
-	var addressTo *common.Address
-	if rawAddressTo != "" {
-		addressToTemp := common.HexToAddress(rawAddressTo)
-		addressTo = &addressToTemp
-	}
-
-	var tx *types.Transaction
-	if gasFeeCapStr != "" && gasTipCapStr != "" {
-		gasFeeCap := validNumber(data.Get("gasFeeCap").(string))
-		gasTipCap := validNumber(data.Get("gasTipCap").(string))
-		tx = newTransactionWithDynamicFee(addressTo, nonce, gasFeeCap, gasTipCap, gasLimit, txDataToSign, amount)
-	} else {
-		tx = newLegacyTransaction(addressTo, nonce, gasPrice, gasLimit, txDataToSign, amount)
-	}
-
 	var signer types.Signer
-	if big.NewInt(0).Cmp(chainId) == 0 {
+	if big.NewInt(0).Cmp(feildsAndTx.chainID) == 0 {
 		signer = types.HomesteadSigner{}
 	} else {
-		signer = types.LatestSignerForChainID(chainId)
+		signer = types.LatestSignerForChainID(feildsAndTx.chainID)
 	}
 
-	signedTx, err := types.SignTx(tx, signer, privateKey)
+	signedTx, err := types.SignTx(feildsAndTx.tx, signer, privateKey)
 	if err != nil {
 		b.Logger().Error("Failed to sign the transaction object", "error", err)
 		return nil, err
@@ -207,4 +157,95 @@ func (b *Backend) signTx(
 			"signedTx": hexutil.Encode(signedTxBuff.Bytes()),
 		},
 	}, nil
+}
+
+func (b *Backend) validateAndGetTx(data *framework.FieldData) (*RequestFieldsTransaction, error) {
+	from, ok := data.Get("name").(string)
+	if !ok {
+		return nil, errInvalidType
+	}
+
+	var txDataToSign []byte
+	dataInput, ok := data.Get("data").(string)
+	if !ok {
+		return nil, errInvalidType
+	}
+
+	// some client such as go-ethereum uses "input" instead of "data"
+	if dataInput == "" {
+		dataInput, ok = data.Get("input").(string)
+		if !ok {
+			return nil, errInvalidType
+		}
+	}
+
+	if len(dataInput) > 2 && dataInput[0:2] != "0x" {
+		dataInput = "0x" + dataInput
+	}
+
+	txDataToSign, err := hexutil.Decode(dataInput)
+	if err != nil {
+		b.Logger().Error("Failed to decode payload for the 'data' field", "error", err)
+		return nil, err
+	}
+
+	address, ok := data.Get("address").(string)
+	if !ok {
+		return nil, errInvalidType
+	}
+
+	amount := validNumber(data.Get("value").(string))
+	if !ok {
+		return nil, errInvalidType
+	}
+
+	if amount == nil {
+		b.Logger().Error("Invalid amount for the 'value' field", "value", data.Get("value").(string))
+		return nil, fmt.Errorf("invalid amount for the 'value' field")
+	}
+
+	rawAddressTo, ok := data.Get("to").(string)
+	if !ok {
+		return nil, errInvalidType
+	}
+
+	chainID := validNumber(data.Get("chainId").(string))
+	if chainID == nil {
+		b.Logger().Error("Invalid chainId", "chainId", data.Get("chainId").(string))
+		return nil, fmt.Errorf("invalid chainId value")
+	}
+
+	gasLimitIn := validNumber(data.Get("gas").(string))
+	if gasLimitIn == nil {
+		b.Logger().Error("Invalid gas limit", "gas", data.Get("gas").(string))
+		return nil, fmt.Errorf("invalid gas limit")
+	}
+	gasLimit := gasLimitIn.Uint64()
+	gasPrice := validNumber(data.Get("gasPrice").(string))
+	gasFeeCapStr := data.Get("gasFeeCap").(string) //nolint
+	gasTipCapStr := data.Get("gasTipCap").(string) //nolint
+	nonceIn := validNumber(data.Get("nonce").(string))
+	nonce := nonceIn.Uint64()
+
+	var addressTo *common.Address
+	if rawAddressTo != "" {
+		addressToTemp := common.HexToAddress(rawAddressTo)
+		addressTo = &addressToTemp
+	}
+
+	out := &RequestFieldsTransaction{
+		address: address,
+		from:    from,
+		chainID: chainID,
+	}
+
+	if gasFeeCapStr != "" && gasTipCapStr != "" {
+		gasFeeCap := validNumber(data.Get("gasFeeCap").(string))
+		gasTipCap := validNumber(data.Get("gasTipCap").(string))
+		out.tx = newTransactionWithDynamicFee(addressTo, nonce, gasFeeCap, gasTipCap, gasLimit, txDataToSign, amount)
+	} else {
+		out.tx = newLegacyTransaction(addressTo, nonce, gasPrice, gasLimit, txDataToSign, amount)
+	}
+
+	return out, nil
 }
