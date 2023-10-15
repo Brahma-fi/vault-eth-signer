@@ -8,6 +8,11 @@ import (
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
+// Backend implements the Backend for this plugin
+type Backend struct {
+	*framework.Backend
+}
+
 // Factory returns the backend
 func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend, error) {
 	b := backend()
@@ -34,11 +39,6 @@ func backend() *Backend {
 		BackendType: logical.TypeLogical,
 	}
 	return &b
-}
-
-// Backend implements the Backend for this plugin
-type Backend struct {
-	*framework.Backend
 }
 
 func (b *Backend) pathExistenceCheck(ctx context.Context, req *logical.Request, data *framework.FieldData) (bool, error) {
