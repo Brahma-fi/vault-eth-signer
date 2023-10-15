@@ -17,7 +17,7 @@ func main() {
 	if err != nil {
 		log.Println(err)
 		os.Exit(1)
-	} // Ignore command, strictly parse flags
+	}
 
 	tlsConfig := apiClientMeta.GetTLSConfig()
 	tlsProviderFunc := api.VaultPluginTLSProvider(tlsConfig)

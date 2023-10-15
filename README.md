@@ -1,3 +1,4 @@
+[![Go Report Card](https://goreportcard.com/badge/github.com/Brahma-fi/vault-eth-signer)](https://goreportcard.com/report/github.com/Brahma-fi/vault-eth-signer)
 [![Vault Ethereum Signer Plugin](https://github.com/Brahma-fi/vault-eth-signer/actions/workflows/vault-eth-signer.yml/badge.svg)](https://github.com/Brahma-fi/vault-eth-signer/actions/workflows/vault-eth-signer.yml)
 
 # Vault-Eth-Signer
