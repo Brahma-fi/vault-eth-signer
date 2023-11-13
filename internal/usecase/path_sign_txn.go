@@ -87,6 +87,10 @@ func pathSignTx(b *Backend) *framework.Path {
 				Description: "(optional) Chain ID of the target blockchain network. If present, EIP155 signer will be used to sign. If omitted, Homestead signer will be used.",
 				Default:     "0",
 			},
+			"accessList": {
+				Type:        framework.TypeString,
+				Description: "(optional) JSON encoded list of addresses and storage keys that the transaction plans to access",
+			},
 		},
 	}
 }
@@ -151,10 +155,17 @@ func (b *Backend) signTx(
 		return nil, err
 	}
 
+	v, r, s := signedTx.RawSignatureValues()
+
 	return &logical.Response{
 		Data: map[string]interface{}{
 			"txHash":   signedTx.Hash().Hex(),
 			"signedTx": hexutil.Encode(signedTxBuff.Bytes()),
+			"signature": map[string]interface{}{
+				"r": fmt.Sprintf("0x%x", r),
+				"v": fmt.Sprintf("0x%x", v),
+				"s": fmt.Sprintf("0x%x", s),
+			},
 		},
 	}, nil
 }
@@ -242,7 +253,13 @@ func (b *Backend) validateAndGetTx(data *framework.FieldData) (*RequestFieldsTra
 	if gasFeeCapStr != "" && gasTipCapStr != "" {
 		gasFeeCap := validNumber(data.Get("gasFeeCap").(string))
 		gasTipCap := validNumber(data.Get("gasTipCap").(string))
-		out.tx = newTransactionWithDynamicFee(addressTo, nonce, gasFeeCap, gasTipCap, gasLimit, txDataToSign, amount)
+
+		accessList, err := parseAccessList(data.Get("accessList").(string))
+		if err != nil {
+			b.Logger().Error("Invalid accessList", "accessList", data.Get("accessList").([]interface{}))
+			return nil, fmt.Errorf("invalid accessList")
+		}
+		out.tx = newTransactionWithDynamicFee(chainID, addressTo, nonce, gasFeeCap, gasTipCap, gasLimit, txDataToSign, amount, accessList)
 	} else {
 		out.tx = newLegacyTransaction(addressTo, nonce, gasPrice, gasLimit, txDataToSign, amount)
 	}
