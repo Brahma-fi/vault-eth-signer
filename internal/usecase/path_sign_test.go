@@ -14,16 +14,22 @@ func TestBackend_sign(t *testing.T) {
 	b, _ := newTestBackend(t)
 
 	const (
-		testSvc = "test-service"
+		testSvc          = "test-service"
+		privateKeyString = "3ee65159f7aa057c482b1041f18f37ce90ef5e460cb46fd3fa0c40fbae41c7e1"
 	)
+	privateKey, err := crypto.HexToECDSA(privateKeyString)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	address := crypto.PubkeyToAddress(privateKey.PublicKey)
 
 	req := logical.TestRequest(t, logical.UpdateOperation, "key-managers")
 	storage := req.Storage
 	req.Data = map[string]interface{}{
 		"serviceName": testSvc,
-		"privateKey":  "3ee65159f7aa057c482b1041f18f37ce90ef5e460cb46fd3fa0c40fbae41c7e1",
+		"privateKey":  privateKeyString,
 	}
-	_, err := b.HandleRequest(context.Background(), req)
+	_, err = b.HandleRequest(context.Background(), req)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -34,7 +40,8 @@ func TestBackend_sign(t *testing.T) {
 	req = logical.TestRequest(t, logical.CreateOperation, "key-managers/"+testSvc+"/sign")
 	req.Storage = storage
 	data := map[string]interface{}{
-		"hash": hash.Hex(),
+		"hash":    hash.Hex(),
+		"address": address.String(),
 	}
 	req.Data = data
 	resp, err := b.HandleRequest(context.Background(), req)
