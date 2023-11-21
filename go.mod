@@ -30,7 +30,7 @@ require (
 	github.com/ethereum/c-kzg-4844 v0.3.1 // indirect
 	github.com/evanphx/json-patch/v5 v5.7.0 // indirect
 	github.com/fatih/color v1.15.0 // indirect
-	github.com/go-jose/go-jose/v3 v3.0.0 // indirect
+	github.com/go-jose/go-jose/v3 v3.0.1 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
