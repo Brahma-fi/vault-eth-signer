@@ -224,7 +224,6 @@ $ curl -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -d 
 
 ### List Existing Key-managers
 The list command only returns the service name that owned the key-manager. 
-To return the private keys, use the `/export/key-managers/:serviceName` endpoint.
 
 Using Vault CLI:
 ```sh
@@ -256,8 +255,7 @@ $  curl -H "Authorization: Bearer $TOKEN" http://localhost:8200/v1/ethereum/key-
 ```
 
 ### Reading Individual Key-managers
-Inspect the key using the service name. Only the service name and public key of the key-manager is returned. 
-To return the private key, use the `/export/key-managers/:serviceName` endpoint.
+Inspect the key using the service name. Only the service name and public key of the key-manager is returned.
 
 Using Vault CLI:
 ```sh
