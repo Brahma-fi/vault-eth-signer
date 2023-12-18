@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
+	"encoding/json"
+	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"testing"
 
@@ -141,15 +143,26 @@ func TestBackend_signTx(t *testing.T) {
 	sender, _ = types.Sender(types.LatestSignerForChainID(big.NewInt(12345)), tx)
 	assert.Equal(t, address.Hex(), sender.Hex())
 
+	accessList := types.AccessList{types.AccessTuple{
+		Address:     common.HexToAddress("0xBffc2f3Df75367B0f246aF6Ae42AFf59A33f2704"),
+		StorageKeys: []common.Hash{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000081")},
+	}}
+
+	encodedAccessList, err := json.Marshal(accessList)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
 	data = map[string]interface{}{
-		"input":     dataToSign,
-		"address":   "0xBffc2f3Df75367B0f246aF6Ae42AFf59A33f2704",
-		"to":        "0xf809410b0d6f047c603deb311979cd413e025a84",
-		"gas":       2500,
-		"nonce":     "0x3",
-		"gasFeeCap": "1",
-		"gasTipCap": "0",
-		"chainId":   "1",
+		"input":      dataToSign,
+		"address":    "0xBffc2f3Df75367B0f246aF6Ae42AFf59A33f2704",
+		"to":         "0xf809410b0d6f047c603deb311979cd413e025a84",
+		"gas":        2500,
+		"nonce":      "0x3",
+		"gasFeeCap":  "1",
+		"gasTipCap":  "0",
+		"chainId":    "1",
+		"accessList": encodedAccessList,
 	}
 	req.Data = data
 	resp, err = b.HandleRequest(context.Background(), req)
