@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -32,6 +33,10 @@ func pathSign(b *Backend) *framework.Path {
 				Description: "Hex string of the hash that should be signed.",
 				Default:     "",
 			},
+			"address": {
+				Type:        framework.TypeString,
+				Description: "The address that belongs to a private key in the key-manager.",
+			},
 		},
 	}
 }
@@ -51,6 +56,11 @@ func (b *Backend) sign(
 		return nil, errInvalidType
 	}
 
+	address, ok := data.Get("address").(string)
+	if !ok {
+		return nil, errInvalidType
+	}
+
 	keyManager, err := b.retrieveKeyManager(ctx, req, serviceNameInput)
 	if err != nil {
 		b.Logger().Error("Failed to retrieve the signing keyManager",
@@ -66,7 +76,19 @@ func (b *Backend) sign(
 		return nil, fmt.Errorf("signing keyManager %s does not have a key pair", serviceNameInput)
 	}
 
-	privateKey, err := crypto.HexToECDSA(keyManager.KeyPairs[0].PrivateKey)
+	var privateKeyStr string
+	for _, keyPairs := range keyManager.KeyPairs {
+		if keyPairs.Address == address {
+			privateKeyStr = keyPairs.PrivateKey
+			break
+		}
+	}
+
+	if privateKeyStr == "" {
+		return nil, errors.New("no private key for the input address")
+	}
+
+	privateKey, err := crypto.HexToECDSA(privateKeyStr)
 	if err != nil {
 		b.Logger().Error("Error reconstructing private key from retrieved hex", "error", err)
 		return nil, fmt.Errorf("error reconstructing private key from retrieved hex")
