@@ -14,7 +14,7 @@ lint: ## Run linters
 
 .PHONY: build-linux-release
 build-linux-release:  ## - build a static release linux elf(binary)
-	@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build -ldflags='-w -s -extldflags "-static"' -a -o "$(GOBIN)/release/linux/vault-eth-signer-$(version)" cmd/plugin/*.go
+	@ CGO_ENABLED=0 GOOS=linux GOARCH=arm64 $(GO) build -ldflags='-w -s -extldflags "-static"' -a -o "$(GOBIN)/release/linux/vault-eth-signer-$(version)" cmd/plugin/*.go
 	@ ls -lah $(GOBIN)/release/linux/vault-eth-signer-$(version)
 	@ shasum -a 256 $(GOBIN)/release/linux/vault-eth-signer-$(version)
 	@ mkdir -p ./.build/vault/plugins
