@@ -173,4 +173,22 @@ func TestBackend_signTx(t *testing.T) {
 
 	sender, _ = types.Sender(types.LatestSignerForChainID(big.NewInt(1)), tx)
 	assert.Equal(t, address.Hex(), sender.Hex())
+
+	// sign TX with invalid nonce
+	dataToSign = "60fe47b10000000000000000000000000000000000000000000000000000000000000014"
+	req = logical.TestRequest(t, logical.CreateOperation, "key-managers/"+keeperSvc+"/txn/sign")
+	req.Storage = storage
+	data = map[string]interface{}{
+		"data":     dataToSign,
+		"address":  "0xBffc2f3Df75367B0f246aF6Ae42AFf59A33f2704",
+		"to":       "0xf809410b0d6f047c603deb311979cd413e025a84",
+		"gas":      2000,
+		"nonce":    "0x",
+		"gasPrice": 0,
+		"chainId":  "12345",
+	}
+	req.Data = data
+	_, err = b.HandleRequest(context.Background(), req)
+	assert.ErrorContains(t, err, "invalid nonce")
+
 }
