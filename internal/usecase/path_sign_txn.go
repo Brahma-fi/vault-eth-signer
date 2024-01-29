@@ -220,11 +220,17 @@ func (b *Backend) validateAndGetTx(data *framework.FieldData) (*RequestFieldsTra
 		b.Logger().Error("Invalid gas limit", "gas", data.Get("gas").(string))
 		return nil, fmt.Errorf("invalid gas limit")
 	}
+
 	gasLimit := gasLimitIn.Uint64()
 	gasPrice := validNumber(data.Get("gasPrice").(string))
 	gasFeeCapStr := data.Get("gasFeeCap").(string) //nolint
 	gasTipCapStr := data.Get("gasTipCap").(string) //nolint
 	nonceIn := validNumber(data.Get("nonce").(string))
+	if nonceIn == nil {
+		b.Logger().Error("Invalid nonce", "nonce", data.Get("nonce").(string))
+		return nil, fmt.Errorf("invalid nonce")
+	}
+
 	nonce := nonceIn.Uint64()
 
 	var addressTo *common.Address
