@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"crypto/ecdsa"
+	"encoding/json"
 	"errors"
 	"math/big"
 	"regexp"
@@ -21,6 +22,7 @@ type Nonce struct {
 }
 
 func newTransactionWithDynamicFee(
+	chainId *big.Int,
 	to *common.Address,
 	nonce uint64,
 	gasFeeCap *big.Int,
@@ -28,15 +30,18 @@ func newTransactionWithDynamicFee(
 	gas uint64,
 	data []byte,
 	value *big.Int,
+	accessList types.AccessList,
 ) *types.Transaction {
 	return types.NewTx(&types.DynamicFeeTx{
-		To:        to,
-		Nonce:     nonce,
-		GasFeeCap: gasFeeCap,
-		GasTipCap: gasTipCap,
-		Gas:       gas,
-		Value:     value,
-		Data:      data,
+		ChainID:    chainId,
+		To:         to,
+		Nonce:      nonce,
+		GasFeeCap:  gasFeeCap,
+		GasTipCap:  gasTipCap,
+		Gas:        gas,
+		Value:      value,
+		Data:       data,
+		AccessList: accessList,
 	})
 }
 
@@ -88,4 +93,18 @@ func contains(arr []*big.Int, value *big.Int) bool {
 		}
 	}
 	return false
+}
+
+func parseAccessList(list string) (types.AccessList, error) {
+	accessList := types.AccessList{}
+	if list == "" {
+		return accessList, nil
+	}
+
+	err := json.Unmarshal([]byte(list), &accessList)
+	if err != nil {
+		return types.AccessList{}, err
+	}
+
+	return accessList, nil
 }
